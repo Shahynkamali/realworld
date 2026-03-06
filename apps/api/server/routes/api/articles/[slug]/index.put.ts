@@ -5,6 +5,7 @@ import {definePrivateEventHandler} from "~/auth-event-handler";
 import {updateArticleSchema} from '~/schemas/article.schema';
 import {validateBody} from '~/utils/validate';
 import {handleUniqueConstraintError} from '~/utils/prisma-errors';
+import {createVersionSnapshot} from '~/utils/article-versioning.service';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     const {article} = validateBody(updateArticleSchema, await readBody(event));
@@ -15,6 +16,7 @@ export default definePrivateEventHandler(async (event, {auth}) => {
             slug,
         },
         select: {
+            id: true,
             author: {
                 select: {
                     id: true,
@@ -31,6 +33,9 @@ export default definePrivateEventHandler(async (event, {auth}) => {
     if (existingArticle.author.id !== auth.id) {
         throw new HttpException(403, {errors: {article: ['forbidden']}});
     }
+
+    // Snapshot current state before applying the update
+    await createVersionSnapshot(existingArticle.id, auth.id);
 
     const newSlug = article.title ? `${slugify(article.title)}-${crypto.randomUUID().slice(0, 8)}` : null;
 
