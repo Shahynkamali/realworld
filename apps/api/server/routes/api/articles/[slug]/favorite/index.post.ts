@@ -45,6 +45,8 @@ export default definePrivateEventHandler(async (event, {auth}) => {
         },
     });
 
+    await useCreateNotification({ type: 'FAVORITE', userId: article.authorId, actorId: auth.id, articleId: existing.id });
+
     const result = {
         ...article,
         author: profileMapper(article.author, auth.id),
