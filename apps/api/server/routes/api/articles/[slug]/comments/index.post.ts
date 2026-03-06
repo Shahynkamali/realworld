@@ -13,6 +13,7 @@ export default definePrivateEventHandler(async (event, {auth}) => {
         },
         select: {
             id: true,
+            authorId: true,
         },
     });
 
@@ -44,6 +45,13 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                 },
             },
         },
+    });
+
+    await useCreateNotification({
+        type: "comment",
+        recipientId: article.authorId,
+        actorId: auth.id,
+        entityId: article.id,
     });
 
     setResponseStatus(event, 201);
