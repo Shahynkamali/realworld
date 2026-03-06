@@ -8,29 +8,31 @@ generator client {
 }
 
 model Article {
-  id          Int       @id @default(autoincrement())
-  slug        String    @unique
-  title       String
-  description String
-  body        String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now())
-  tagList     Tag[]
-  author      User      @relation("UserArticles", fields: [authorId], onDelete: Cascade, references: [id])
-  authorId    Int
-  favoritedBy User[]    @relation("UserFavorites")
-  comments    Comment[]
+  id            Int            @id @default(autoincrement())
+  slug          String         @unique
+  title         String
+  description   String
+  body          String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @default(now())
+  tagList       Tag[]
+  author        User           @relation("UserArticles", fields: [authorId], onDelete: Cascade, references: [id])
+  authorId      Int
+  favoritedBy   User[]         @relation("UserFavorites")
+  comments      Comment[]
+  notifications Notification[]
 }
 
 model Comment {
-  id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
-  body      String
-  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  articleId Int
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  authorId  Int
+  id            Int            @id @default(autoincrement())
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @default(now())
+  body          String
+  article       Article        @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  articleId     Int
+  author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId      Int
+  notifications Notification[]
 }
 
 model Tag {
@@ -40,15 +42,32 @@ model Tag {
 }
 
 model User {
-  id         Int       @id @default(autoincrement())
-  email      String    @unique
-  username   String    @unique
-  password   String
-  image      String?
-  bio        String?
-  articles   Article[] @relation("UserArticles")
-  favorites  Article[] @relation("UserFavorites")
-  followedBy User[]    @relation("UserFollows")
-  following  User[]    @relation("UserFollows")
-  comments   Comment[]
+  id                 Int            @id @default(autoincrement())
+  email              String         @unique
+  username           String         @unique
+  password           String
+  image              String?
+  bio                String?
+  articles           Article[]      @relation("UserArticles")
+  favorites          Article[]      @relation("UserFavorites")
+  followedBy         User[]         @relation("UserFollows")
+  following          User[]         @relation("UserFollows")
+  comments           Comment[]
+  notifications      Notification[] @relation("UserNotifications")
+  actorNotifications Notification[] @relation("ActorNotifications")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  read      Boolean  @default(false)
+  type      String
+  user      User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  actor     User     @relation("ActorNotifications", fields: [actorId], references: [id], onDelete: Cascade)
+  actorId   Int
+  article   Article? @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  articleId Int?
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentId Int?
 }

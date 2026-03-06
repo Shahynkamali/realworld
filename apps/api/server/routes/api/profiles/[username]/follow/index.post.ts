@@ -29,5 +29,7 @@ export default definePrivateEventHandler(async (event, {auth}) => {
         },
     });
 
+    await useCreateNotification({ type: 'FOLLOW', userId: user.id, actorId: auth.id });
+
     return {profile: profileMapper(profile, auth.id)};
 });
