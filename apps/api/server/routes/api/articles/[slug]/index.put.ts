@@ -5,6 +5,7 @@ import {definePrivateEventHandler} from "~/auth-event-handler";
 import {updateArticleSchema} from '~/schemas/article.schema';
 import {validateBody} from '~/utils/validate';
 import {handleUniqueConstraintError} from '~/utils/prisma-errors';
+import {createVersionSnapshot} from '~/utils/article-versioning.service';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     const {article} = validateBody(updateArticleSchema, await readBody(event));
@@ -15,6 +16,7 @@ export default definePrivateEventHandler(async (event, {auth}) => {
             slug,
         },
         select: {
+            id: true,
             author: {
                 select: {
                     id: true,
@@ -44,6 +46,9 @@ export default definePrivateEventHandler(async (event, {auth}) => {
 
     try {
         const updatedArticle = await usePrisma().$transaction(async (tx) => {
+            // Snapshot current state before applying the update
+            await createVersionSnapshot(existingArticle.id, auth.id, tx);
+
             await tx.article.update({
                 where: { slug },
                 data: { tagList: { set: [] } },
