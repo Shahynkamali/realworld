@@ -87,5 +87,7 @@ const buildFindAllQuery = (query: any, auth: {id: number} | undefined) => {
         });
     }
 
+    queries.push({ status: 'published' });
+
     return queries;
 };

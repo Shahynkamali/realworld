@@ -28,7 +28,7 @@ export default definePrivateEventHandler(async (event, {auth}) => {
         },
     });
 
-    if (!article) {
+    if (!article || (article.status !== 'published' && article.authorId !== auth?.id)) {
         throw new HttpException(404, {errors: {article: ['not found']}});
     }
 

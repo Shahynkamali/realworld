@@ -1,38 +1,21 @@
 import articleMapper from "~/utils/article.mapper";
+import {draftFilter} from "~/utils/article-visibility";
 import {definePrivateEventHandler} from "~/auth-event-handler";
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     const query = getQuery(event);
-    const articlesCount = await usePrisma().article.count({
-        where: {
-            status: 'published',
-            author: {
-                followedBy: { some: { id: auth.id } },
-            },
-        },
-    });
+
+    const where = draftFilter(auth.id);
+
+    const articlesCount = await usePrisma().article.count({ where });
 
     const articles = await usePrisma().article.findMany({
-        where: {
-            status: 'published',
-            author: {
-                followedBy: { some: { id: auth.id } },
-            },
-        },
-        orderBy: {
-            createdAt: 'desc',
-        },
+        where,
+        orderBy: { createdAt: 'desc' },
         skip: Number(query.offset) || 0,
         take: Number(query.limit) || 10,
-        omit: {
-            body: true,
-        },
         include: {
-            tagList: {
-                select: {
-                    name: true,
-                },
-            },
+            tagList: { select: { name: true } },
             author: {
                 select: {
                     username: true,
@@ -41,11 +24,7 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                 },
             },
             favoritedBy: { select: { id: true } },
-            _count: {
-                select: {
-                    favoritedBy: true,
-                },
-            },
+            _count: { select: { favoritedBy: true } },
         },
     });
 

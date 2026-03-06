@@ -7,7 +7,7 @@ export default definePrivateEventHandler(async (event, {auth}) => {
     const slug = getRouterParam(event, "slug");
 
     const existing = await usePrisma().article.findUnique({ where: { slug } });
-    if (!existing) {
+    if (!existing || existing.status !== 'published') {
         throw new HttpException(404, {errors: {article: ['not found']}});
     }
 
