@@ -13,10 +13,12 @@ export default definePrivateEventHandler(async (event, {auth}) => {
         },
         select: {
             id: true,
+            status: true,
+            authorId: true,
         },
     });
 
-    if (!article) {
+    if (!article || (article.status !== 'published' && article.authorId !== auth.id)) {
         throw new HttpException(404, {errors: {article: ['not found']}});
     }
 

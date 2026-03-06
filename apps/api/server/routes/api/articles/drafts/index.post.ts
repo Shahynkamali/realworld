@@ -1,31 +1,25 @@
 import articleMapper from "~/utils/article.mapper";
 import slugify from 'slugify';
 import {definePrivateEventHandler} from "~/auth-event-handler";
-import {createArticleSchema} from '~/schemas/article.schema';
+import {createDraftSchema} from '~/schemas/draft.schema';
 import {validateBody} from '~/utils/validate';
 import {handleUniqueConstraintError} from '~/utils/prisma-errors';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
-    const {article} = validateBody(createArticleSchema, await readBody(event));
+    const {article} = validateBody(createDraftSchema, await readBody(event));
 
     const {title, description, body, tagList} = article;
 
     const slug = `${slugify(title)}-${crypto.randomUUID().slice(0, 8)}`;
 
     try {
-        const {
-            authorId,
-            id: articleId,
-            ...createdArticle
-        } = await usePrisma().article.create({
+        const createdArticle = await usePrisma().article.create({
             data: {
                 title,
                 description,
                 body,
                 slug,
-                status: 'published',
-                publishedAt: new Date(),
-                // connectOrCreate issues one SELECT + conditional INSERT per tag (not batched, but ok for now)
+                status: 'draft',
                 tagList: {
                     connectOrCreate: tagList.map((tag: string) => ({
                         create: { name: tag },
@@ -33,17 +27,11 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                     })),
                 },
                 author: {
-                    connect: {
-                        id: auth.id,
-                    },
+                    connect: { id: auth.id },
                 },
             },
             include: {
-                tagList: {
-                    select: {
-                        name: true,
-                    },
-                },
+                tagList: { select: { name: true } },
                 author: {
                     select: {
                         username: true,
@@ -53,11 +41,7 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                     },
                 },
                 favoritedBy: true,
-                _count: {
-                    select: {
-                        favoritedBy: true,
-                    },
-                },
+                _count: { select: { favoritedBy: true } },
             },
         });
 

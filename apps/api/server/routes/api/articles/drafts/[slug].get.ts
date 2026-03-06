@@ -3,18 +3,12 @@ import articleMapper from "~/utils/article.mapper";
 import {definePrivateEventHandler} from "~/auth-event-handler";
 
 export default definePrivateEventHandler(async (event, {auth}) => {
-const slug = getRouterParam(event, 'slug');
+    const slug = getRouterParam(event, 'slug');
 
     const article = await usePrisma().article.findUnique({
-        where: {
-            slug,
-        },
+        where: { slug },
         include: {
-            tagList: {
-                select: {
-                    name: true,
-                },
-            },
+            tagList: { select: { name: true } },
             author: {
                 select: {
                     username: true,
@@ -24,17 +18,13 @@ const slug = getRouterParam(event, 'slug');
                 },
             },
             favoritedBy: true,
-            _count: {
-                select: {
-                    favoritedBy: true,
-                },
-            },
+            _count: { select: { favoritedBy: true } },
         },
     });
 
-    if (!article || (article.status !== 'published' && article.authorId !== auth?.id)) {
-        throw new HttpException(404, { errors: { article: ['not found'] } });
+    if (!article || article.status === 'published' || article.authorId !== auth.id) {
+        throw new HttpException(404, {errors: {article: ['not found']}});
     }
 
-    return {article: articleMapper(article, auth?.id)};
-}, {requireAuth: false});
+    return {article: articleMapper(article, auth.id)};
+});
