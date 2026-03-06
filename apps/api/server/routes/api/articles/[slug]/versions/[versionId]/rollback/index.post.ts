@@ -1,6 +1,6 @@
 import HttpException from '~/models/http-exception.model';
 import { definePrivateEventHandler } from '~/auth-event-handler';
-import { createVersionSnapshot } from '~/utils/article-versioning.service';
+import { createVersionSnapshot, parseVersionTags } from '~/utils/article-versioning.service';
 
 export default definePrivateEventHandler(async (event, { auth }) => {
     const slug = getRouterParam(event, 'slug');
@@ -25,24 +25,23 @@ export default definePrivateEventHandler(async (event, { auth }) => {
 
     const targetVersion = await usePrisma().articleVersion.findFirst({
         where: { id: versionId, articleId: article.id },
+        select: { versionNumber: true, title: true, description: true, body: true, tags: true },
     });
 
     if (!targetVersion) {
         throw new HttpException(404, { errors: { version: ['not found'] } });
     }
 
-    // Snapshot current state before rolling back
-    await createVersionSnapshot(article.id, auth.id);
-
-    // Restore article to the target version's content
-    const restoredTags: string[] = JSON.parse(targetVersion.tags);
-
+    const restoredTags = parseVersionTags(targetVersion);
     const tagConnects = restoredTags.map(tag => ({
         create: { name: tag },
         where: { name: tag },
     }));
 
     await usePrisma().$transaction(async (tx) => {
+        // Snapshot current state before rolling back
+        await createVersionSnapshot(article.id, auth.id, tx);
+
         await tx.article.update({
             where: { id: article.id },
             data: { tagList: { set: [] } },

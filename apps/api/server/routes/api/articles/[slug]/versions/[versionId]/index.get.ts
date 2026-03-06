@@ -1,5 +1,6 @@
 import HttpException from '~/models/http-exception.model';
 import { definePrivateEventHandler } from '~/auth-event-handler';
+import { parseVersionTags } from '~/utils/article-versioning.service';
 
 export default definePrivateEventHandler(async (event, { auth }) => {
     const slug = getRouterParam(event, 'slug');
@@ -43,7 +44,7 @@ export default definePrivateEventHandler(async (event, { auth }) => {
     return {
         version: {
             ...version,
-            tags: JSON.parse(version.tags),
+            tags: parseVersionTags(version),
         },
     };
 });

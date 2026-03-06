@@ -34,9 +34,6 @@ export default definePrivateEventHandler(async (event, {auth}) => {
         throw new HttpException(403, {errors: {article: ['forbidden']}});
     }
 
-    // Snapshot current state before applying the update
-    await createVersionSnapshot(existingArticle.id, auth.id);
-
     const newSlug = article.title ? `${slugify(article.title)}-${crypto.randomUUID().slice(0, 8)}` : null;
 
     const tagList =
@@ -49,6 +46,9 @@ export default definePrivateEventHandler(async (event, {auth}) => {
 
     try {
         const updatedArticle = await usePrisma().$transaction(async (tx) => {
+            // Snapshot current state before applying the update
+            await createVersionSnapshot(existingArticle.id, auth.id, tx);
+
             await tx.article.update({
                 where: { slug },
                 data: { tagList: { set: [] } },

@@ -1,6 +1,7 @@
 import HttpException from '~/models/http-exception.model';
 import { definePrivateEventHandler } from '~/auth-event-handler';
 import { diffVersions } from '~/utils/diff.service';
+import { parseVersionTags } from '~/utils/article-versioning.service';
 
 export default definePrivateEventHandler(async (event, { auth }) => {
     const slug = getRouterParam(event, 'slug');
@@ -25,12 +26,18 @@ export default definePrivateEventHandler(async (event, { auth }) => {
         throw new HttpException(403, { errors: { article: ['forbidden'] } });
     }
 
+    const versionSelect = {
+        id: true, versionNumber: true, title: true, description: true, body: true, tags: true,
+    } as const;
+
     const [version1, version2] = await Promise.all([
         usePrisma().articleVersion.findFirst({
             where: { id: v1, articleId: article.id },
+            select: versionSelect,
         }),
         usePrisma().articleVersion.findFirst({
             where: { id: v2, articleId: article.id },
+            select: versionSelect,
         }),
     ]);
 
@@ -44,8 +51,8 @@ export default definePrivateEventHandler(async (event, { auth }) => {
         : [version2, version1];
 
     const diff = diffVersions(
-        { title: older.title, description: older.description, body: older.body, tags: JSON.parse(older.tags) },
-        { title: newer.title, description: newer.description, body: newer.body, tags: JSON.parse(newer.tags) },
+        { title: older.title, description: older.description, body: older.body, tags: parseVersionTags(older) },
+        { title: newer.title, description: newer.description, body: newer.body, tags: parseVersionTags(newer) },
     );
 
     return {

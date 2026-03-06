@@ -57,7 +57,7 @@ function computeLCS(a: string[], b: string[]): string[] {
     let i = m, j = n;
     while (i > 0 && j > 0) {
         if (a[i - 1] === b[j - 1]) {
-            result.unshift(a[i - 1]);
+            result.push(a[i - 1]);
             i--;
             j--;
         } else if (dp[i - 1][j] > dp[i][j - 1]) {
@@ -67,7 +67,7 @@ function computeLCS(a: string[], b: string[]): string[] {
         }
     }
 
-    return result;
+    return result.reverse();
 }
 
 export interface VersionDiff {
