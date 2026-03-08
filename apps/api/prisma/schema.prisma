@@ -8,18 +8,20 @@ generator client {
 }
 
 model Article {
-  id          Int       @id @default(autoincrement())
-  slug        String    @unique
-  title       String
-  description String
-  body        String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now())
-  tagList     Tag[]
-  author      User      @relation("UserArticles", fields: [authorId], onDelete: Cascade, references: [id])
-  authorId    Int
-  favoritedBy User[]    @relation("UserFavorites")
-  comments    Comment[]
+  id            Int                   @id @default(autoincrement())
+  slug          String                @unique
+  title         String
+  description   String
+  body          String
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @default(now())
+  tagList       Tag[]
+  author        User                  @relation("UserArticles", fields: [authorId], onDelete: Cascade, references: [id])
+  authorId      Int
+  favoritedBy   User[]                @relation("UserFavorites")
+  comments      Comment[]
+  collaborators ArticleCollaborator[]
+  revisions     ArticleRevision[]
 }
 
 model Comment {
@@ -40,15 +42,47 @@ model Tag {
 }
 
 model User {
-  id         Int       @id @default(autoincrement())
-  email      String    @unique
-  username   String    @unique
-  password   String
-  image      String?
-  bio        String?
-  articles   Article[] @relation("UserArticles")
-  favorites  Article[] @relation("UserFavorites")
-  followedBy User[]    @relation("UserFollows")
-  following  User[]    @relation("UserFollows")
-  comments   Comment[]
+  id              Int                   @id @default(autoincrement())
+  email           String                @unique
+  username        String                @unique
+  password        String
+  image           String?
+  bio             String?
+  articles        Article[]             @relation("UserArticles")
+  favorites       Article[]             @relation("UserFavorites")
+  followedBy      User[]                @relation("UserFollows")
+  following       User[]                @relation("UserFollows")
+  comments        Comment[]
+  collaborations  ArticleCollaborator[] @relation("CollaboratorUser")
+  invitesSent     ArticleCollaborator[] @relation("CollaboratorInviter")
+  revisions       ArticleRevision[]
+}
+
+model ArticleRevision {
+  id        Int      @id @default(autoincrement())
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  articleId Int
+  title     String
+  description String
+  body      String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  Int
+  createdAt DateTime @default(now())
+
+  @@index([articleId])
+}
+
+model ArticleCollaborator {
+  id          Int       @id @default(autoincrement())
+  article     Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  articleId   Int
+  user        User      @relation("CollaboratorUser", fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  invitedBy   User      @relation("CollaboratorInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+  invitedById Int
+  role        String    @default("viewer") // "editor" or "viewer"
+  invitedAt   DateTime  @default(now())
+  acceptedAt  DateTime?
+
+  @@unique([articleId, userId])
 }
