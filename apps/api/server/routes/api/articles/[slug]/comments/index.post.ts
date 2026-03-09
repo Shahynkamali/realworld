@@ -2,6 +2,7 @@ import HttpException from "~/models/http-exception.model";
 import {definePrivateEventHandler} from "~/auth-event-handler";
 import {createCommentSchema} from '~/schemas/comment.schema';
 import {validateBody} from '~/utils/validate';
+import {notifyComment} from "~/utils/notification.service";
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     const {comment} = validateBody(createCommentSchema, await readBody(event));
@@ -13,6 +14,8 @@ export default definePrivateEventHandler(async (event, {auth}) => {
         },
         select: {
             id: true,
+            title: true,
+            authorId: true,
         },
     });
 
@@ -45,6 +48,8 @@ export default definePrivateEventHandler(async (event, {auth}) => {
             },
         },
     });
+
+    notifyComment(auth.id, createdComment.author.username, { id: article.id, title: article.title, authorId: article.authorId }).catch(() => {});
 
     setResponseStatus(event, 201);
     return {

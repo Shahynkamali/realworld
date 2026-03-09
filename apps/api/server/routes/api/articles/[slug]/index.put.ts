@@ -6,6 +6,7 @@ import {validateBody} from '~/utils/validate';
 import {handleUniqueConstraintError} from '~/utils/prisma-errors';
 import {requireArticleAccess} from '~/utils/collaborator.service';
 import {createRevision} from '~/utils/revision.service';
+import {notifyRevisionChange} from '~/utils/notification.service';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     const {article} = validateBody(updateArticleSchema, await readBody(event));
@@ -69,6 +70,22 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                 },
             });
         });
+
+        // Notify collaborators about the revision change
+        const collaborators = await usePrisma().articleCollaborator.findMany({
+            where: { articleId: existingArticle.id, acceptedAt: { not: null } },
+            select: { userId: true },
+        });
+        const actor = await usePrisma().user.findUnique({
+            where: { id: auth.id },
+            select: { username: true },
+        });
+        notifyRevisionChange(
+            auth.id,
+            actor!.username,
+            { id: existingArticle.id, title: article.title ?? existingArticle.title, authorId: existingArticle.authorId },
+            collaborators.map(c => c.userId),
+        ).catch(() => {});
 
         return {article: articleMapper(updatedArticle, auth.id)};
     } catch (e) {

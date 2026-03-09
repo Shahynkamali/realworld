@@ -56,6 +56,9 @@ model User {
   collaborations  ArticleCollaborator[] @relation("CollaboratorUser")
   invitesSent     ArticleCollaborator[] @relation("CollaboratorInviter")
   revisions       ArticleRevision[]
+  notifications          Notification[]          @relation("NotificationRecipient")
+  notificationsTriggered Notification[]          @relation("NotificationActor")
+  notificationPreferences NotificationPreference[]
 }
 
 model ArticleRevision {
@@ -70,6 +73,33 @@ model ArticleRevision {
   createdAt DateTime @default(now())
 
   @@index([articleId])
+}
+
+model Notification {
+  id         Int      @id @default(autoincrement())
+  type       String   // FOLLOW, FAVORITE, COMMENT, COLLABORATION_INVITE, REVISION_CHANGE
+  user       User     @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  userId     Int
+  actor      User     @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  actorId    Int
+  entityId   Int?
+  entityType String?  // article, comment, user
+  message    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+}
+
+model NotificationPreference {
+  id               Int     @id @default(autoincrement())
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           Int
+  notificationType String  // FOLLOW, FAVORITE, COMMENT, COLLABORATION_INVITE, REVISION_CHANGE
+  isEnabled        Boolean @default(true)
+
+  @@unique([userId, notificationType])
 }
 
 model ArticleCollaborator {

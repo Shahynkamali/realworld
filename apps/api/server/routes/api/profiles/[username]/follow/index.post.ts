@@ -1,6 +1,7 @@
 import HttpException from "~/models/http-exception.model";
 import profileMapper from "~/utils/profile.utils";
 import {definePrivateEventHandler} from "~/auth-event-handler";
+import {notifyFollow} from "~/utils/notification.service";
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     const username = getRouterParam(event, 'username');
@@ -12,6 +13,11 @@ export default definePrivateEventHandler(async (event, {auth}) => {
     if (!user) {
         throw new HttpException(404, {errors: {profile: ['not found']}});
     }
+
+    const actor = await usePrisma().user.findUnique({
+        where: { id: auth.id },
+        select: { username: true },
+    });
 
     const profile = await usePrisma().user.update({
         where: {
@@ -28,6 +34,8 @@ export default definePrivateEventHandler(async (event, {auth}) => {
             followedBy: true,
         },
     });
+
+    notifyFollow(auth.id, actor!.username, user.id).catch(() => {});
 
     return {profile: profileMapper(profile, auth.id)};
 });
