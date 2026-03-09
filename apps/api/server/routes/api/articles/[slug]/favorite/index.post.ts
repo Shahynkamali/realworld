@@ -2,6 +2,7 @@ import HttpException from "~/models/http-exception.model";
 import profileMapper from "~/utils/profile.utils";
 import {Tag} from "~/models/tag.model";
 import {definePrivateEventHandler} from "~/auth-event-handler";
+import {notifyFavorite} from '~/utils/notification.service';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     const slug = getRouterParam(event, "slug");
@@ -52,6 +53,15 @@ export default definePrivateEventHandler(async (event, {auth}) => {
         favorited: article.favoritedBy.some((favorited: any) => favorited.id === auth.id),
         favoritesCount: _count?.favoritedBy,
     };
+
+    // Notify article author about the favorite
+    const actor = await usePrisma().user.findUnique({
+        where: { id: auth.id },
+        select: { username: true },
+    });
+    if (actor) {
+        notifyFavorite(auth.id, existing.authorId, actor.username, existing.title, existing.id).catch(() => {});
+    }
 
     return {article: result};
 });
