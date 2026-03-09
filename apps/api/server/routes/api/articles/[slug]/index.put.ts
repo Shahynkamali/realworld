@@ -6,6 +6,7 @@ import {validateBody} from '~/utils/validate';
 import {handleUniqueConstraintError} from '~/utils/prisma-errors';
 import {requireArticleAccess} from '~/utils/collaborator.service';
 import {createRevision} from '~/utils/revision.service';
+import {calculateReadingTime} from '~/utils/reading-time.service';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     const {article} = validateBody(updateArticleSchema, await readBody(event));
@@ -40,6 +41,7 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                     ...(article.body ? { body: article.body } : {}),
                     ...(article.description ? { description: article.description } : {}),
                     ...(newSlug ? { slug: newSlug } : {}),
+                    ...(article.body ? { readingTimeMinutes: calculateReadingTime(article.body) } : {}),
                     updatedAt: new Date(),
                     // connectOrCreate issues one SELECT + conditional INSERT per tag (not batched, but ok for now)
                     tagList: {
