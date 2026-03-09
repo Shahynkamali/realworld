@@ -27,6 +27,7 @@ const slug = getRouterParam(event, 'slug');
             _count: {
                 select: {
                     favoritedBy: true,
+                    views: true,
                 },
             },
         },

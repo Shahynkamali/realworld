@@ -8,19 +8,32 @@ generator client {
 }
 
 model Article {
-  id          Int       @id @default(autoincrement())
-  slug        String    @unique
+  id          Int           @id @default(autoincrement())
+  slug        String        @unique
   title       String
   description String
   body        String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now())
+  readingTime Int           @default(1)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @default(now())
   tagList     Tag[]
-  author      User      @relation("UserArticles", fields: [authorId], onDelete: Cascade, references: [id])
+  author      User          @relation("UserArticles", fields: [authorId], onDelete: Cascade, references: [id])
   authorId    Int
-  favoritedBy User[]    @relation("UserFavorites")
+  favoritedBy User[]        @relation("UserFavorites")
   comments    Comment[]
   reports     Report[]
+  views       ArticleView[]
+}
+
+model ArticleView {
+  id        Int      @id @default(autoincrement())
+  articleId Int
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  userId    Int?
+  ipHash    String?
+  viewedAt  DateTime @default(now())
+
+  @@index([articleId, viewedAt])
 }
 
 model Comment {

@@ -6,6 +6,7 @@ import {updateArticleSchema} from '~/schemas/article.schema';
 import {validateBody} from '~/utils/validate';
 import {handleUniqueConstraintError} from '~/utils/prisma-errors';
 import {checkBan} from '~/utils/check-ban';
+import {calculateReadingTime} from '~/utils/reading-time';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     await checkBan(auth.id);
@@ -56,7 +57,7 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                 where: { slug },
                 data: {
                     ...(article.title ? { title: article.title } : {}),
-                    ...(article.body ? { body: article.body } : {}),
+                    ...(article.body ? { body: article.body, readingTime: calculateReadingTime(article.body) } : {}),
                     ...(article.description ? { description: article.description } : {}),
                     ...(newSlug ? { slug: newSlug } : {}),
                     updatedAt: new Date(),
@@ -83,6 +84,7 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                     _count: {
                         select: {
                             favoritedBy: true,
+                            views: true,
                         },
                     },
                 },

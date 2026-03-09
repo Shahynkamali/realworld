@@ -6,6 +6,7 @@ import {validateBody} from '~/utils/validate';
 import {handleUniqueConstraintError} from '~/utils/prisma-errors';
 import {checkBan} from '~/utils/check-ban';
 import {analyzeContent} from '~/utils/content-moderation';
+import {calculateReadingTime} from '~/utils/reading-time';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     await checkBan(auth.id);
@@ -27,6 +28,7 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                 description,
                 body,
                 slug,
+                readingTime: calculateReadingTime(body),
                 // connectOrCreate issues one SELECT + conditional INSERT per tag (not batched, but ok for now)
                 tagList: {
                     connectOrCreate: tagList.map((tag: string) => ({
@@ -58,6 +60,7 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                 _count: {
                     select: {
                         favoritedBy: true,
+                        views: true,
                     },
                 },
             },
