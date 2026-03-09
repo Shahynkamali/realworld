@@ -1,36 +1,17 @@
-import HttpException from "~/models/http-exception.model";
 import articleMapper from "~/utils/article.mapper";
 import slugify from 'slugify';
 import {definePrivateEventHandler} from "~/auth-event-handler";
 import {updateArticleSchema} from '~/schemas/article.schema';
 import {validateBody} from '~/utils/validate';
 import {handleUniqueConstraintError} from '~/utils/prisma-errors';
+import {requireArticleAccess} from '~/utils/collaborator.service';
+import {createRevision} from '~/utils/revision.service';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     const {article} = validateBody(updateArticleSchema, await readBody(event));
     const slug = getRouterParam(event, 'slug');
 
-    const existingArticle = await usePrisma().article.findFirst({
-        where: {
-            slug,
-        },
-        select: {
-            author: {
-                select: {
-                    id: true,
-                    username: true,
-                },
-            },
-        },
-    });
-
-    if (!existingArticle) {
-        throw new HttpException(404, {errors: {article: ['not found']}});
-    }
-
-    if (existingArticle.author.id !== auth.id) {
-        throw new HttpException(403, {errors: {article: ['forbidden']}});
-    }
+    const existingArticle = await requireArticleAccess(slug!, auth.id, 'editor');
 
     const newSlug = article.title ? `${slugify(article.title)}-${crypto.randomUUID().slice(0, 8)}` : null;
 
@@ -43,6 +24,9 @@ export default definePrivateEventHandler(async (event, {auth}) => {
             : [];
 
     try {
+        // Snapshot current article state before updating
+        await createRevision(existingArticle.id, auth.id);
+
         const updatedArticle = await usePrisma().$transaction(async (tx) => {
             await tx.article.update({
                 where: { slug },

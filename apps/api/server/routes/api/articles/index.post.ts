@@ -4,8 +4,13 @@ import {definePrivateEventHandler} from "~/auth-event-handler";
 import {createArticleSchema} from '~/schemas/article.schema';
 import {validateBody} from '~/utils/validate';
 import {handleUniqueConstraintError} from '~/utils/prisma-errors';
+import {getAuthUser, requireNotBanned} from '~/utils/moderation.service';
+import {autoModerateContent} from '~/utils/rule-engine.service';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
+    const user = await getAuthUser(auth.id);
+    requireNotBanned(user);
+
     const {article} = validateBody(createArticleSchema, await readBody(event));
 
     const {title, description, body, tagList} = article;
@@ -58,6 +63,9 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                 },
             },
         });
+
+        // Auto-moderate the content asynchronously
+        autoModerateContent('article', articleId, `${title} ${description} ${body}`, auth.id).catch(() => {});
 
         setResponseStatus(event, 201);
         return {article: articleMapper(createdArticle, auth.id)};

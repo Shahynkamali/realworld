@@ -8,18 +8,20 @@ generator client {
 }
 
 model Article {
-  id          Int       @id @default(autoincrement())
-  slug        String    @unique
-  title       String
-  description String
-  body        String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now())
-  tagList     Tag[]
-  author      User      @relation("UserArticles", fields: [authorId], onDelete: Cascade, references: [id])
-  authorId    Int
-  favoritedBy User[]    @relation("UserFavorites")
-  comments    Comment[]
+  id            Int                   @id @default(autoincrement())
+  slug          String                @unique
+  title         String
+  description   String
+  body          String
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @default(now())
+  tagList       Tag[]
+  author        User                  @relation("UserArticles", fields: [authorId], onDelete: Cascade, references: [id])
+  authorId      Int
+  favoritedBy   User[]                @relation("UserFavorites")
+  comments      Comment[]
+  collaborators ArticleCollaborator[]
+  revisions     ArticleRevision[]
 }
 
 model Comment {
@@ -40,15 +42,111 @@ model Tag {
 }
 
 model User {
+  id              Int                   @id @default(autoincrement())
+  email           String                @unique
+  username        String                @unique
+  password        String
+  image           String?
+  bio             String?
+  moderatorRole   String                @default("user") // "user", "moderator", "admin"
+  isBanned        Boolean               @default(false)
+  articles        Article[]             @relation("UserArticles")
+  favorites       Article[]             @relation("UserFavorites")
+  followedBy      User[]                @relation("UserFollows")
+  following       User[]                @relation("UserFollows")
+  comments        Comment[]
+  collaborations  ArticleCollaborator[] @relation("CollaboratorUser")
+  invitesSent     ArticleCollaborator[] @relation("CollaboratorInviter")
+  revisions       ArticleRevision[]
+  reportsSubmitted     Report[]              @relation("ReportReporter")
+  reportsReviewed      Report[]              @relation("ReportReviewer")
+  moderationActions    UserModerationAction[] @relation("ModeratedUser")
+  moderationIssued     UserModerationAction[] @relation("ModerationIssuer")
+  appeals              Appeal[]              @relation("AppealUser")
+  appealsReviewed      Appeal[]              @relation("AppealReviewer")
+}
+
+model ArticleRevision {
+  id        Int      @id @default(autoincrement())
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  articleId Int
+  title     String
+  description String
+  body      String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  Int
+  createdAt DateTime @default(now())
+
+  @@index([articleId])
+}
+
+model Report {
+  id                  Int       @id @default(autoincrement())
+  reportedContentType String    // "article" or "comment"
+  reportedContentId   Int
+  reporter            User      @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reporterId          Int
+  reason              String    // "spam", "harassment", "inappropriate", "other"
+  description         String?
+  status              String    @default("pending") // "pending", "reviewed", "dismissed"
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @default(now())
+  reviewedAt          DateTime?
+  reviewedBy          User?     @relation("ReportReviewer", fields: [reviewedById], references: [id])
+  reviewedById        Int?
+}
+
+model ModerationRule {
+  id         Int      @id @default(autoincrement())
+  name       String
+  ruleType   String   // "banned_words", "spam_pattern", "content_length"
+  pattern    String
+  isActive   Boolean  @default(true)
+  severity   String   @default("low") // "low", "medium", "high"
+  autoAction String   @default("flag") // "flag", "warn", "ban"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+}
+
+model UserModerationAction {
   id         Int       @id @default(autoincrement())
-  email      String    @unique
-  username   String    @unique
-  password   String
-  image      String?
-  bio        String?
-  articles   Article[] @relation("UserArticles")
-  favorites  Article[] @relation("UserFavorites")
-  followedBy User[]    @relation("UserFollows")
-  following  User[]    @relation("UserFollows")
-  comments   Comment[]
+  user       User      @relation("ModeratedUser", fields: [userId], references: [id], onDelete: Cascade)
+  userId     Int
+  actionType String    // "warning", "temp_ban", "permanent_ban"
+  reason     String
+  issuedBy   User      @relation("ModerationIssuer", fields: [issuedById], references: [id])
+  issuedById Int
+  issuedAt   DateTime  @default(now())
+  expiresAt  DateTime?
+  isActive   Boolean   @default(true)
+  appeals    Appeal[]
+}
+
+model Appeal {
+  id                  Int                  @id @default(autoincrement())
+  user                User                 @relation("AppealUser", fields: [userId], references: [id], onDelete: Cascade)
+  userId              Int
+  moderationAction    UserModerationAction @relation(fields: [moderationActionId], references: [id], onDelete: Cascade)
+  moderationActionId  Int
+  reason              String
+  status              String               @default("pending") // "pending", "approved", "denied"
+  submittedAt         DateTime             @default(now())
+  reviewedAt          DateTime?
+  reviewedBy          User?                @relation("AppealReviewer", fields: [reviewedById], references: [id])
+  reviewedById        Int?
+}
+
+model ArticleCollaborator {
+  id          Int       @id @default(autoincrement())
+  article     Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  articleId   Int
+  user        User      @relation("CollaboratorUser", fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  invitedBy   User      @relation("CollaboratorInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+  invitedById Int
+  role        String    @default("viewer") // "editor" or "viewer"
+  invitedAt   DateTime  @default(now())
+  acceptedAt  DateTime?
+
+  @@unique([articleId, userId])
 }
