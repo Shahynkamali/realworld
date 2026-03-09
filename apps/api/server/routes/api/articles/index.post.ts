@@ -4,8 +4,12 @@ import {definePrivateEventHandler} from "~/auth-event-handler";
 import {createArticleSchema} from '~/schemas/article.schema';
 import {validateBody} from '~/utils/validate';
 import {handleUniqueConstraintError} from '~/utils/prisma-errors';
+import {checkBan} from '~/utils/check-ban';
+import {analyzeContent} from '~/utils/content-moderation';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
+    await checkBan(auth.id);
+
     const {article} = validateBody(createArticleSchema, await readBody(event));
 
     const {title, description, body, tagList} = article;
@@ -58,6 +62,19 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                 },
             },
         });
+
+        const contentToAnalyze = `${title} ${description} ${body}`;
+        const modResult = analyzeContent(contentToAnalyze);
+        if (modResult.flagged) {
+            await usePrisma().report.create({
+                data: {
+                    reason: 'spam',
+                    description: modResult.reasons.join('; '),
+                    autoFlagged: true,
+                    articleId: articleId,
+                },
+            });
+        }
 
         setResponseStatus(event, 201);
         return {article: articleMapper(createdArticle, auth.id)};

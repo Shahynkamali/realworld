@@ -5,8 +5,11 @@ import {definePrivateEventHandler} from "~/auth-event-handler";
 import {updateArticleSchema} from '~/schemas/article.schema';
 import {validateBody} from '~/utils/validate';
 import {handleUniqueConstraintError} from '~/utils/prisma-errors';
+import {checkBan} from '~/utils/check-ban';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
+    await checkBan(auth.id);
+
     const {article} = validateBody(updateArticleSchema, await readBody(event));
     const slug = getRouterParam(event, 'slug');
 
