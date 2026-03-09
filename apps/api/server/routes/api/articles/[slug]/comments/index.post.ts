@@ -2,8 +2,13 @@ import HttpException from "~/models/http-exception.model";
 import {definePrivateEventHandler} from "~/auth-event-handler";
 import {createCommentSchema} from '~/schemas/comment.schema';
 import {validateBody} from '~/utils/validate';
+import {getAuthUser, requireNotBanned} from '~/utils/moderation.service';
+import {autoModerateContent} from '~/utils/rule-engine.service';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
+    const user = await getAuthUser(auth.id);
+    requireNotBanned(user);
+
     const {comment} = validateBody(createCommentSchema, await readBody(event));
     const slug = getRouterParam(event, 'slug');
 
@@ -45,6 +50,9 @@ export default definePrivateEventHandler(async (event, {auth}) => {
             },
         },
     });
+
+    // Auto-moderate the comment content asynchronously
+    autoModerateContent('comment', createdComment.id, comment.body, auth.id).catch(() => {});
 
     setResponseStatus(event, 201);
     return {
