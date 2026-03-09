@@ -1,6 +1,7 @@
 import HttpException from "~/models/http-exception.model";
 import profileMapper from "~/utils/profile.utils";
 import {definePrivateEventHandler} from "~/auth-event-handler";
+import {useCreateNotification} from "~/utils/notification.create";
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     const username = getRouterParam(event, 'username');
@@ -27,6 +28,12 @@ export default definePrivateEventHandler(async (event, {auth}) => {
         include: {
             followedBy: true,
         },
+    });
+
+    await useCreateNotification({
+        type: 'FOLLOW',
+        userId: user.id,
+        actorId: auth.id,
     });
 
     return {profile: profileMapper(profile, auth.id)};

@@ -1,0 +1,9 @@
+export type NotificationType = 'FOLLOW' | 'FAVORITE' | 'COMMENT' | 'COLLABORATION_INVITE' | 'REVISION_CHANGE';
+
+export const NOTIFICATION_TYPES: NotificationType[] = [
+  'FOLLOW',
+  'FAVORITE',
+  'COMMENT',
+  'COLLABORATION_INVITE',
+  'REVISION_CHANGE',
+];

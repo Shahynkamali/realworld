@@ -2,11 +2,12 @@ import HttpException from "~/models/http-exception.model";
 import profileMapper from "~/utils/profile.utils";
 import {Tag} from "~/models/tag.model";
 import {definePrivateEventHandler} from "~/auth-event-handler";
+import {useCreateNotification} from "~/utils/notification.create";
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     const slug = getRouterParam(event, "slug");
 
-    const existing = await usePrisma().article.findUnique({ where: { slug } });
+    const existing = await usePrisma().article.findUnique({ where: { slug }, select: { id: true, authorId: true } });
     if (!existing) {
         throw new HttpException(404, {errors: {article: ['not found']}});
     }
@@ -52,6 +53,13 @@ export default definePrivateEventHandler(async (event, {auth}) => {
         favorited: article.favoritedBy.some((favorited: any) => favorited.id === auth.id),
         favoritesCount: _count?.favoritedBy,
     };
+
+    await useCreateNotification({
+        type: 'FAVORITE',
+        userId: existing.authorId,
+        actorId: auth.id,
+        articleId: existing.id,
+    });
 
     return {article: result};
 });

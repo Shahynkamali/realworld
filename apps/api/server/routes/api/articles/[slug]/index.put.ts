@@ -5,6 +5,7 @@ import {definePrivateEventHandler} from "~/auth-event-handler";
 import {updateArticleSchema} from '~/schemas/article.schema';
 import {validateBody} from '~/utils/validate';
 import {handleUniqueConstraintError} from '~/utils/prisma-errors';
+import {useCreateNotification} from '~/utils/notification.create';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     const {article} = validateBody(updateArticleSchema, await readBody(event));
@@ -15,11 +16,19 @@ export default definePrivateEventHandler(async (event, {auth}) => {
             slug,
         },
         select: {
+            id: true,
+            title: true,
+            description: true,
+            body: true,
             author: {
                 select: {
                     id: true,
                     username: true,
                 },
+            },
+            collaborations: {
+                where: { status: 'ACCEPTED' },
+                select: { inviteeId: true },
             },
         },
     });
@@ -28,7 +37,10 @@ export default definePrivateEventHandler(async (event, {auth}) => {
         throw new HttpException(404, {errors: {article: ['not found']}});
     }
 
-    if (existingArticle.author.id !== auth.id) {
+    const isAuthor = existingArticle.author.id === auth.id;
+    const isCollaborator = existingArticle.collaborations.some(c => c.inviteeId === auth.id);
+
+    if (!isAuthor && !isCollaborator) {
         throw new HttpException(403, {errors: {article: ['forbidden']}});
     }
 
@@ -44,6 +56,17 @@ export default definePrivateEventHandler(async (event, {auth}) => {
 
     try {
         const updatedArticle = await usePrisma().$transaction(async (tx) => {
+            // Snapshot current state as a revision
+            await tx.revision.create({
+                data: {
+                    title: existingArticle.title,
+                    description: existingArticle.description,
+                    body: existingArticle.body,
+                    articleId: existingArticle.id,
+                    authorId: auth.id,
+                },
+            });
+
             await tx.article.update({
                 where: { slug },
                 data: { tagList: { set: [] } },
@@ -57,7 +80,6 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                     ...(article.description ? { description: article.description } : {}),
                     ...(newSlug ? { slug: newSlug } : {}),
                     updatedAt: new Date(),
-                    // connectOrCreate issues one SELECT + conditional INSERT per tag (not batched, but ok for now)
                     tagList: {
                         connectOrCreate: tagList,
                     },
@@ -85,6 +107,15 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                 },
             });
         });
+
+        if (!isAuthor) {
+            await useCreateNotification({
+                type: 'REVISION_CHANGE',
+                userId: existingArticle.author.id,
+                actorId: auth.id,
+                articleId: existingArticle.id,
+            });
+        }
 
         return {article: articleMapper(updatedArticle, auth.id)};
     } catch (e) {
