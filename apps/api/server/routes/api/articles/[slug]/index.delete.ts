@@ -1,5 +1,6 @@
 import HttpException from "~/models/http-exception.model";
 import {definePrivateEventHandler} from "~/auth-event-handler";
+import {ftsDeleteArticle} from '~/utils/fts';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
 const slug = getRouterParam(event, 'slug');
@@ -9,6 +10,7 @@ const slug = getRouterParam(event, 'slug');
             slug,
         },
         select: {
+            id: true,
             author: {
                 select: {
                     id: true,
@@ -30,6 +32,10 @@ const slug = getRouterParam(event, 'slug');
             slug,
         },
     });
+
+    try {
+        await ftsDeleteArticle(existingArticle.id);
+    } catch (_) { /* FTS sync failure is non-critical */ }
 
     setResponseStatus(event, 204);
     return null;
