@@ -1,5 +1,6 @@
 import HttpException from "~/models/http-exception.model";
 import {definePrivateEventHandler} from "~/auth-event-handler";
+import {removeArticleFromIndex} from '~/utils/search.service';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
 const slug = getRouterParam(event, 'slug');
@@ -9,6 +10,7 @@ const slug = getRouterParam(event, 'slug');
             slug,
         },
         select: {
+            id: true,
             author: {
                 select: {
                     id: true,
@@ -30,6 +32,8 @@ const slug = getRouterParam(event, 'slug');
             slug,
         },
     });
+
+    removeArticleFromIndex(existingArticle.id).catch(() => {});
 
     setResponseStatus(event, 204);
     return null;

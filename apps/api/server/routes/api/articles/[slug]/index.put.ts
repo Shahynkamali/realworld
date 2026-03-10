@@ -5,6 +5,7 @@ import {definePrivateEventHandler} from "~/auth-event-handler";
 import {updateArticleSchema} from '~/schemas/article.schema';
 import {validateBody} from '~/utils/validate';
 import {handleUniqueConstraintError} from '~/utils/prisma-errors';
+import {indexArticle} from '~/utils/search.service';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     const {article} = validateBody(updateArticleSchema, await readBody(event));
@@ -85,6 +86,13 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                 },
             });
         });
+
+        indexArticle(
+            updatedArticle.id,
+            updatedArticle.title,
+            updatedArticle.description,
+            updatedArticle.body,
+        ).catch(() => {});
 
         return {article: articleMapper(updatedArticle, auth.id)};
     } catch (e) {
