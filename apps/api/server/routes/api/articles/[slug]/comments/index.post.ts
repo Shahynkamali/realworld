@@ -2,8 +2,12 @@ import HttpException from "~/models/http-exception.model";
 import {definePrivateEventHandler} from "~/auth-event-handler";
 import {createCommentSchema} from '~/schemas/comment.schema';
 import {validateBody} from '~/utils/validate';
+import {checkBan} from '~/utils/check-ban';
+import {analyzeContent} from '~/utils/content-moderation';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
+    await checkBan(auth.id);
+
     const {comment} = validateBody(createCommentSchema, await readBody(event));
     const slug = getRouterParam(event, 'slug');
 
@@ -45,6 +49,18 @@ export default definePrivateEventHandler(async (event, {auth}) => {
             },
         },
     });
+
+    const modResult = analyzeContent(comment.body);
+    if (modResult.flagged) {
+        await usePrisma().report.create({
+            data: {
+                reason: 'spam',
+                description: modResult.reasons.join('; '),
+                autoFlagged: true,
+                commentId: createdComment.id,
+            },
+        });
+    }
 
     setResponseStatus(event, 201);
     return {

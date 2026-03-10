@@ -4,8 +4,14 @@ import {definePrivateEventHandler} from "~/auth-event-handler";
 import {createArticleSchema} from '~/schemas/article.schema';
 import {validateBody} from '~/utils/validate';
 import {handleUniqueConstraintError} from '~/utils/prisma-errors';
+import {checkBan} from '~/utils/check-ban';
+import {analyzeContent} from '~/utils/content-moderation';
+import {calculateReadingTime} from '~/utils/reading-time';
+import {ftsIndexArticle} from '~/utils/fts';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
+    await checkBan(auth.id);
+
     const {article} = validateBody(createArticleSchema, await readBody(event));
 
     const {title, description, body, tagList} = article;
@@ -23,6 +29,7 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                 description,
                 body,
                 slug,
+                readingTime: calculateReadingTime(body),
                 // connectOrCreate issues one SELECT + conditional INSERT per tag (not batched, but ok for now)
                 tagList: {
                     connectOrCreate: tagList.map((tag: string) => ({
@@ -54,10 +61,28 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                 _count: {
                     select: {
                         favoritedBy: true,
+                        views: true,
                     },
                 },
             },
         });
+
+        const contentToAnalyze = `${title} ${description} ${body}`;
+        const modResult = analyzeContent(contentToAnalyze);
+        if (modResult.flagged) {
+            await usePrisma().report.create({
+                data: {
+                    reason: 'spam',
+                    description: modResult.reasons.join('; '),
+                    autoFlagged: true,
+                    articleId: articleId,
+                },
+            });
+        }
+
+        try {
+            await ftsIndexArticle(articleId, title, description, body);
+        } catch (_) { /* FTS sync failure is non-critical */ }
 
         setResponseStatus(event, 201);
         return {article: articleMapper(createdArticle, auth.id)};

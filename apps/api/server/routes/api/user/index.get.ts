@@ -12,6 +12,7 @@ export default definePrivateEventHandler(async (event, {auth}) => {
             username: true,
             bio: true,
             image: true,
+            role: true,
         },
     })) as User;
 

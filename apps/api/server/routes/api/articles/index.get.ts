@@ -41,6 +41,7 @@ export default definePrivateEventHandler(async (event, {auth}) => {
             _count: {
                 select: {
                     favoritedBy: true,
+                    views: true,
                 },
             },
         },

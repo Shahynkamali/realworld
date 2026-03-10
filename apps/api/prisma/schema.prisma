@@ -8,18 +8,32 @@ generator client {
 }
 
 model Article {
-  id          Int       @id @default(autoincrement())
-  slug        String    @unique
+  id          Int           @id @default(autoincrement())
+  slug        String        @unique
   title       String
   description String
   body        String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now())
+  readingTime Int           @default(1)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @default(now())
   tagList     Tag[]
-  author      User      @relation("UserArticles", fields: [authorId], onDelete: Cascade, references: [id])
+  author      User          @relation("UserArticles", fields: [authorId], onDelete: Cascade, references: [id])
   authorId    Int
-  favoritedBy User[]    @relation("UserFavorites")
+  favoritedBy User[]        @relation("UserFavorites")
   comments    Comment[]
+  reports     Report[]
+  views       ArticleView[]
+}
+
+model ArticleView {
+  id        Int      @id @default(autoincrement())
+  articleId Int
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  userId    Int?
+  ipHash    String?
+  viewedAt  DateTime @default(now())
+
+  @@index([articleId, viewedAt])
 }
 
 model Comment {
@@ -31,6 +45,7 @@ model Comment {
   articleId Int
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   authorId  Int
+  reports   Report[]
 }
 
 model Tag {
@@ -40,15 +55,60 @@ model Tag {
 }
 
 model User {
-  id         Int       @id @default(autoincrement())
-  email      String    @unique
-  username   String    @unique
-  password   String
-  image      String?
-  bio        String?
-  articles   Article[] @relation("UserArticles")
-  favorites  Article[] @relation("UserFavorites")
-  followedBy User[]    @relation("UserFollows")
-  following  User[]    @relation("UserFollows")
-  comments   Comment[]
+  id               Int           @id @default(autoincrement())
+  email            String        @unique
+  username         String        @unique
+  password         String
+  image            String?
+  bio              String?
+  role             String        @default("user")
+  bannedAt         DateTime?
+  banReason        String?
+  articles         Article[]     @relation("UserArticles")
+  favorites        Article[]     @relation("UserFavorites")
+  followedBy       User[]        @relation("UserFollows")
+  following        User[]        @relation("UserFollows")
+  comments         Comment[]
+  reports          Report[]      @relation("ReporterReports")
+  moderatedReports Report[]      @relation("ModeratorReports")
+  warnings         UserWarning[]
+  appeals          Appeal[]
+}
+
+model Report {
+  id          Int       @id @default(autoincrement())
+  reason      String
+  description String?
+  status      String    @default("pending")
+  action      String?
+  autoFlagged Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now())
+  reporter    User?     @relation("ReporterReports", fields: [reporterId], references: [id], onDelete: SetNull)
+  reporterId  Int?
+  moderator   User?     @relation("ModeratorReports", fields: [moderatorId], references: [id], onDelete: SetNull)
+  moderatorId Int?
+  articleId   Int?
+  article     Article?  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  commentId   Int?
+  comment     Comment?  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+}
+
+model UserWarning {
+  id        Int      @id @default(autoincrement())
+  reason    String
+  createdAt DateTime @default(now())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Appeal {
+  id        Int      @id @default(autoincrement())
+  body      String
+  status    String   @default("pending")
+  response  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
