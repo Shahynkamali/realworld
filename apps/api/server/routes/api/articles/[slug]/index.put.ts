@@ -7,6 +7,7 @@ import {validateBody} from '~/utils/validate';
 import {handleUniqueConstraintError} from '~/utils/prisma-errors';
 import {checkBan} from '~/utils/check-ban';
 import {calculateReadingTime} from '~/utils/reading-time';
+import {ftsUpdateArticle} from '~/utils/fts';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     await checkBan(auth.id);
@@ -90,6 +91,15 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                 },
             });
         });
+
+        try {
+            await ftsUpdateArticle(
+                updatedArticle.id,
+                updatedArticle.title,
+                updatedArticle.description,
+                updatedArticle.body,
+            );
+        } catch (_) { /* FTS sync failure is non-critical */ }
 
         return {article: articleMapper(updatedArticle, auth.id)};
     } catch (e) {

@@ -7,6 +7,7 @@ import {handleUniqueConstraintError} from '~/utils/prisma-errors';
 import {checkBan} from '~/utils/check-ban';
 import {analyzeContent} from '~/utils/content-moderation';
 import {calculateReadingTime} from '~/utils/reading-time';
+import {ftsIndexArticle} from '~/utils/fts';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     await checkBan(auth.id);
@@ -78,6 +79,10 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                 },
             });
         }
+
+        try {
+            await ftsIndexArticle(articleId, title, description, body);
+        } catch (_) { /* FTS sync failure is non-critical */ }
 
         setResponseStatus(event, 201);
         return {article: articleMapper(createdArticle, auth.id)};
