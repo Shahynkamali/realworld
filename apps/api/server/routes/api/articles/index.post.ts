@@ -4,6 +4,7 @@ import {definePrivateEventHandler} from "~/auth-event-handler";
 import {createArticleSchema} from '~/schemas/article.schema';
 import {validateBody} from '~/utils/validate';
 import {handleUniqueConstraintError} from '~/utils/prisma-errors';
+import {ftsIndexArticle} from '~/utils/fts';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     const {article} = validateBody(createArticleSchema, await readBody(event));
@@ -58,6 +59,10 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                 },
             },
         });
+
+        try {
+            await ftsIndexArticle(articleId, title, description, body);
+        } catch (_) { /* FTS sync failure is non-critical */ }
 
         setResponseStatus(event, 201);
         return {article: articleMapper(createdArticle, auth.id)};

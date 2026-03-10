@@ -5,6 +5,7 @@ import {definePrivateEventHandler} from "~/auth-event-handler";
 import {updateArticleSchema} from '~/schemas/article.schema';
 import {validateBody} from '~/utils/validate';
 import {handleUniqueConstraintError} from '~/utils/prisma-errors';
+import {ftsUpdateArticle} from '~/utils/fts';
 
 export default definePrivateEventHandler(async (event, {auth}) => {
     const {article} = validateBody(updateArticleSchema, await readBody(event));
@@ -85,6 +86,15 @@ export default definePrivateEventHandler(async (event, {auth}) => {
                 },
             });
         });
+
+        try {
+            await ftsUpdateArticle(
+                updatedArticle.id,
+                updatedArticle.title,
+                updatedArticle.description,
+                updatedArticle.body,
+            );
+        } catch (_) { /* FTS sync failure is non-critical */ }
 
         return {article: articleMapper(updatedArticle, auth.id)};
     } catch (e) {
